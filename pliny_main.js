@@ -16,6 +16,9 @@ $(document).ready(function() {
 
     // Read the GeoJSON file
     $.getJSON('Pliny_Points.geojson', function(data) {
+        // Initialize an empty array to store markers
+        var markers = [];
+
         // Loop through each feature
         data.features.forEach(function(feature) {
             // Get the coordinates of the feature
@@ -30,13 +33,16 @@ $(document).ready(function() {
             // Add the marker to the map
             marker.addTo(map);
 
+            // Store the marker in the markers array
+            markers.push(marker);
+
             // Add a row to the DataTable
             datatable.row.add([feature.properties.Dir_entry1]).draw();
         });
 
         // Handle row click event
         $('#datatable tbody').on('click', 'tr', function() {
-            // Clear the temporary marker if exists
+            // Remove the previous temporary marker if exists
             if (tempMarker) {
                 map.removeLayer(tempMarker);
             }
@@ -58,7 +64,7 @@ $(document).ready(function() {
             }).addTo(map);
             
             // Add a popup to the temporary marker with data from DataTables
-            tempMarker.bindPopup(feature.properties.Dir_entry1);
+            tempMarker.bindPopup(datatable.row(index).data()[0]);
 
             // Zoom to the temporary marker
             map.setView(tempMarker.getLatLng(), 13);
@@ -66,5 +72,10 @@ $(document).ready(function() {
             // Open the popup of the temporary marker
             tempMarker.openPopup();
         });
+    });
+
+    // Toggle the DataTable visibility
+    $('#toggle-datatable-btn').click(function() {
+        $('#datatable-container').toggle();
     });
 });
