@@ -37,6 +37,9 @@ $(document).ready(function() {
     // Variable to store the point features
     var pointFeatures;
 
+    // Variable to store the lines GeoJSON data
+    var linesData;
+
     // Read the Points GeoJSON file
     $.getJSON('Pliny_Points.geojson', function(pointsData) {
         // Create a new empty SVG layer
@@ -120,7 +123,10 @@ $(document).ready(function() {
     });
 
     // Read the Lines GeoJSON file
-    $.getJSON('Pliny_Lines.geojson', function(linesData) {
+    $.getJSON('Pliny_Lines.geojson', function(data) {
+        // Store the lines GeoJSON data
+        linesData = data;
+
         // Add the line features to the lines GeoJSON layer
         linesLayer.addData(linesData);
 
@@ -131,37 +137,44 @@ $(document).ready(function() {
         });
     });
 
-    // Zoom to a feature and open a popup when a row is clicked
-    $('#datatable tbody').on('click', 'tr', function() {
-        // Get the index of the clicked row
-        var index = datatable.row(this).index();
+// Zoom to a feature and open a popup when a row is clicked
+$('#datatable tbody').on('click', 'tr', function() {
+    // Get the index of the clicked row
+    var index = datatable.row(this).index();
 
-        // Get the corresponding feature from the GeoJSON
-        var feature;
-        if (index < pointFeatures.size()) {
-            feature = pointsData.features[index];
-        } else {
-            feature = linesData.features[index - pointFeatures.size()];
-        }
+    // Get the corresponding feature from the GeoJSON
+    var feature;
+    if (index < pointFeatures.size()) {
+        feature = pointFeatures.data()[index];
+    } else {
+        feature = linesData.features[index - pointFeatures.size()];
+    }
 
-        // Get the coordinates from the feature
-        var coordinates = feature.geometry.coordinates;
+    // Get the coordinates from the feature
+    var coordinates;
+    if (feature.geometry.type === 'Point') {
+        coordinates = feature.geometry.coordinates;
+    } else if (feature.geometry.type === 'LineString') {
+        coordinates = getLineStringMiddlePoint(feature.geometry.coordinates);
+    } else if (feature.geometry.type === 'MultiLineString') {
+        coordinates = getMultiLineStringMiddlePoint(feature.geometry.coordinates);
+    }
 
-        // Create a temporary marker with a customized shape and style
-        tempMarker = L.marker([coordinates[1], coordinates[0]], {
-            icon: L.divIcon({
-                className: 'custom-marker',
-                html: '<div style="background-color: orange;"></div>',
-                iconSize: [16, 16]
-            })
-        }).addTo(map);
+    // Create a temporary marker with a customized shape and style
+    tempMarker = L.marker([coordinates[1], coordinates[0]], {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background-color: orange;"></div>',
+            iconSize: [16, 16]
+        })
+    }).addTo(map);
 
-        // Open the popup
-        tempMarker.bindPopup(feature.properties.Dir_entry1).openPopup();
+    // Open the popup
+    tempMarker.bindPopup(feature.properties.Dir_entry1).openPopup();
 
-        // Zoom to the feature
-        map.setView(tempMarker.getLatLng(), 13);
-    });
+    // Zoom to the feature
+    map.setView(tempMarker.getLatLng(), 13);
+});
 
     // Toggle the DataTable visibility
     $('#toggle-datatable-btn').click(function() {
@@ -190,5 +203,70 @@ $(document).ready(function() {
             var point = map.latLngToLayerPoint([d.geometry.coordinates[1], d.geometry.coordinates[0]]);
             return 'translate(' + point.x + ',' + point.y + ')';
         });
+    }
+
+    function getLineStringMiddlePoint(coordinates) {
+        var length = coordinates.length;
+        var middleIndex = Math.floor(length / 2);
+        return coordinates[middleIndex];
+    }
+
+    function getMultiLineStringMiddlePoint(coordinates) {
+        var totalLength = 0;
+        var segmentLengths = [];
+        coordinates.forEach(function(lineString) {
+            var lineStringLength = lineString.length;
+            totalLength += lineStringLength;
+            segmentLengths.push(totalLength);
+        });
+
+        var middleLength = totalLength / 2;
+
+        var targetLineStringIndex = 0;
+        for (var i = 0; i < segmentLengths.length; i++) {
+            if (middleLength <= segmentLengths[i]) {
+                targetLineStringIndex = i;
+                break;
+            }
+        }
+
+        var targetLineString = coordinates[targetLineStringIndex];
+        var targetLineStringLength = targetLineString.length;
+        var targetSegmentLength = segmentLengths[targetLineStringIndex];
+
+        var middleSegmentLength = middleLength - (targetSegmentLength - targetLineStringLength);
+        var middleIndex = 0;
+        for (var j = 0; j < targetLineStringLength; j++) {
+            var segmentStart = targetLineString[j];
+            var segmentEnd = targetLineString[j + 1];
+            var segmentLength = distance(segmentStart[1], segmentStart[0], segmentEnd[1], segmentEnd[0]);
+            if (middleSegmentLength <= segmentLength) {
+                middleIndex = j;
+                break;
+            } else {
+                middleSegmentLength -= segmentLength;
+            }
+        }
+
+        var middleSegmentStart = targetLineString[middleIndex];
+        var middleSegmentEnd = targetLineString[middleIndex + 1];
+        var interpolatedCoordinates = interpolate(middleSegmentStart[1], middleSegmentStart[0], middleSegmentEnd[1], middleSegmentEnd[0], middleSegmentLength);
+        return interpolatedCoordinates;
+    }
+
+    function distance(lat1, lon1, lat2, lon2) {
+        var p = 0.017453292519943295;    // Math.PI / 180
+        var c = Math.cos;
+        var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+            c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+
+        return 12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
+    }
+
+    function interpolate(lat1, lon1, lat2, lon2, fraction) {
+        var lat = (1 - fraction) * lat1 + fraction * lat2;
+        var lon = (1 - fraction) * lon1 + fraction * lon2;
+        return [lat, lon];
     }
 });
