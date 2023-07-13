@@ -5,11 +5,14 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css">
     <style>
+        #map {
+            height: 400px;
+        }
         #datatable-container {
             display: none;
             position: absolute;
-            top: 100px;
-            left: 100px;
+            top: 10px;
+            left: 10px;
             z-index: 9999;
             background-color: white;
             padding: 10px;
@@ -19,10 +22,12 @@
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-d3-svg-overlay@2.2.0/L.D3SvgOverlay.min.js"></script>
 </head>
 <body>
-    <div id="map" style="height: 400px;"></div>
+    <div id="map"></div>
     <button id="toggle-datatable-btn">Toggle DataTable</button>
     <div id="datatable-container">
         <table id="datatable">
